@@ -1,6 +1,6 @@
 # MiniEIT
 
-Basically people from the Julia slack are of the opinion that autodifferentuation librares like 
+Basically people from the Julia slack are of the opinion that autodifferentiation libraries like 
 - [ ] Enzyme.jl
 - [ ] Mooncake.jl
 - [ ] Zygote.jl?
@@ -12,17 +12,25 @@ Given that my other EIT library has grown sufficiently big I wanna provide a min
 
 Imagine a function of the type:
 
-$$ obj(\sigma, f, g) =  || f - L(\sigma)^(-1) g||^2 $$
-with $\sigma\rightarrow L(\sigma)$ some matrix assembly,
+$$J(\sigma, f, g) =  || f - L_{\sigma}^{-1} g ||^2$$
 
-Concretely I also need to plan for a function that restricts to  the boundary: $ \partial: \Omega\rightarrow\partial\Omega $
+with $\sigma\rightarrow L_{\sigma}$ some matrix assembly, the goal is to get:
+
+$$\nabla_\sigma J(\sigma,f,g)$$
+
+Preferably specifically for the implemented FEM discretization.
+Concretely I also need to plan for a function that restricts to  the boundary: 
+
+$$\partial: \Omega\rightarrow\partial\Omega$$
+
 Then the full problem becomes something like:
-$$ obj(\sigma, f, g) =  || \partial(f) - \partial(L(\sigma)^(-1) g) ||^2 $$
+
+$$J(\sigma, f, g) =  || \partial(f) - \partial(L_{\sigma}^{-1} g) ||^2$$
 
 
 Additional problem would be: 
-- a nonallocating version
-- a BlockCG solved version for $F$,$G$ matrices
+- a non allocating version
+- a (Block-)CG solved version for $F$, $G$ matrices
 - a parallel assembly
 - a version that can handle adaptive grid refining/coarsening
 
