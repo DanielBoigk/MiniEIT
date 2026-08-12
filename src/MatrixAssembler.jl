@@ -1,3 +1,5 @@
+# This file contains the assembler for a weighted stiffness matrix
+
 export assemble_L, assemble_L!, AssemblerInfo
 
 struct AssemblerInfo

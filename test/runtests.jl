@@ -7,6 +7,8 @@ using Enzyme: Enzyme
 using Zygote: Zygote
 using Mooncake: Mooncake
 
+# this is the minimal Ferrite things needed to give an example:
+
 N = 63
 order = 2
 qr_order = 3
@@ -31,5 +33,5 @@ cellvalues, dh, dim, n = return_space(RefQuadrilateral, grid, 2, 3)
 ∂Ω = union(getfacetset.((grid,), ["left", "top", "right", "bottom"])...)
 m = length(∂Ω)
 
-# This test is supposed to test whether the functional is differentiable given
+# This test is supposed to test whether the functional is differentiable:
 include("01NoBoundaryTest.jl")

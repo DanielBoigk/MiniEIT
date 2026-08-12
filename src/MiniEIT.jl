@@ -1,3 +1,4 @@
+# This file takes the matrix assembler and returns the objective function j(σ,f,g) = ||f- L(σ)^(-1) g||^2
 module MiniEIT
     using Ferrite, LinearAlgebra, SparseArrays
     using IterativeSolvers, Krylov
@@ -28,8 +29,8 @@ module MiniEIT
         return j, J
     end
 
-
-    # This is the same but a function that somehow restricts to the boundary
+    # Ignore this for now
+    # This is the same but with a function that somehow restricts to the boundary
     # tb = from interior to boundary
     # ti = from boundary to interior
     function assemble_J(cellvalues::CellValues, dh::DofHandler, m::Int64 ,tb, ti)

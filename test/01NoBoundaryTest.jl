@@ -4,17 +4,18 @@ using ForwardDiff: ForwardDiff
 using Enzyme: Enzyme
 using Zygote: Zygote
 using Mooncake: Mooncake
+# This is the actual test which tests autodifferentiation:
 @testset "No boundary Differentiation test" begin
     σ = rand(Uniform(1e-6, 1.0), n)
 
-    # Try all this with AbstractVectors
+    # Try all this with Vectors
     g = randn(n)
     g .-= Statistics.mean(g)          # necessary - need zero mean RHS
     f = randn(n)
     f .-= Statistics.mean(f)          # not necessary
 
 
-    # Try all this with AbstractArrays
+    # Try all this with Arrays:
     k = 10
     G = randn(n, k)
     G .-= Statistics.mean(G, dims=1)  # necessary `
@@ -61,6 +62,6 @@ using Mooncake: Mooncake
     end
 
 
-    # If that works then I would do the same testset again for the Array input of F, G
+    # If that works then I would do the same testset again for the Array input of F, G matrices
 
 end
