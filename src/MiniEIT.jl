@@ -6,6 +6,8 @@ module MiniEIT
 
     export assemble_J
 
+
+    # This assembles the function I want to differentiate:
     function assemble_J(cellvalues::CellValues, dh::DofHandler)
         ai = AssemblerInfo(cellvalues, dh)
         n = ndofs(dh)
