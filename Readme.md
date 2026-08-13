@@ -14,7 +14,11 @@ Imagine a function of the type:
 
 $$J(\sigma, f, g) =  || f - L_{\sigma}^{-1} g ||^2$$
 
-with $\sigma\rightarrow L_{\sigma}$ some matrix assembly, the goal is to get:
+with 
+
+$$\sigma\rightarrow L_{\sigma}=\int \sigma \nabla \phi_i\cdot\nabla\phi_j d \Omega$$ 
+
+some matrix assembly for a weighted stiffness matrix, the goal is to get:
 
 $$\nabla_\sigma J(\sigma,f,g)$$
 
@@ -33,5 +37,3 @@ Additional problem would be:
 - a (Block-)CG solved version for $F$, $G$ matrices
 - a parallel assembly
 - a version that can handle adaptive grid refining/coarsening
-
-
