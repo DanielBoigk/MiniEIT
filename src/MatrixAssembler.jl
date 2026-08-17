@@ -2,6 +2,7 @@
 # and the adjoint-method sensitivity assembler for its gradient.
 
 export assemble_L, assemble_L!, assemble_gradient!, AssemblerInfo
+export boundary_dofs, select_electrodes, boundary_maps
 
 struct AssemblerInfo
     L
@@ -123,4 +124,57 @@ function assemble_gradient!(grad::AbstractVector, ai::AssemblerInfo, λ::Abstrac
         end
     end
     return grad
+end
+
+# Sorted, unique global dof indices of `field` on `facetset` (e.g. the whole
+# boundary ∂Ω, or a subset of it). Uses a throwaway zero-Dirichlet constraint
+# purely to let Ferrite work out which dofs live on `facetset` -- this is not
+# an actual boundary condition on the state.
+function boundary_dofs(dh::DofHandler, field::Symbol, facetset)
+    ch = ConstraintHandler(dh)
+    add!(ch, Dirichlet(field, facetset, (x, t) -> 0))
+    close!(ch)
+    return ch.prescribed_dofs
+end
+
+# Picks `n_electrodes` dofs out of `dofs` to emulate a handful of discrete
+# EIT electrodes on a continuous boundary dof set, rather than driving/
+# measuring every boundary dof. Note: this spaces indices evenly through
+# `dofs` as given (e.g. sorted by dof number), NOT evenly around the
+# physical perimeter -- fine for exercising the machinery, but for a
+# physically meaningful electrode layout you'd want to pick dofs by node
+# coordinate instead.
+function select_electrodes(dofs::AbstractVector{<:Integer}, n_electrodes::Int)
+    1 <= n_electrodes <= length(dofs) || throw(ArgumentError("n_electrodes must be in 1:length(dofs)"))
+    idx = unique(round.(Int, range(1, length(dofs), length=n_electrodes)))
+    return dofs[idx]
+end
+
+# Builds the pair of linear maps assemble_J's boundary-restricted method
+# needs: tb restricts a length-n state/RHS vector (or matrix) to the given
+# electrode dofs, and ti is its transpose -- it embeds an electrode-length
+# vector (or matrix) back into length n, zero everywhere else. assemble_J's
+# adjoint gradient relies on ti = tb' holding exactly, so build both from the
+# same `electrode_dofs` rather than writing them independently.
+#
+# Caveat: ti(g) becomes a Neumann load vector, i.e. injected current. If the
+# entries of `g` don't sum to zero (charge conservation / no return path),
+# the resulting `u` is still a well-defined solution (assemble_L! grounds a
+# reference dof so the system can't be singular), but it no longer
+# corresponds to a physically realizable closed-circuit measurement -- zero
+# the mean of `g` yourself if that matters for what you're testing.
+function boundary_maps(n::Int, electrode_dofs::AbstractVector{<:Integer})
+    tb(u::AbstractVector) = u[electrode_dofs]
+    tb(U::AbstractMatrix) = U[electrode_dofs, :]
+    function ti(g::AbstractVector)
+        out = zeros(eltype(g), n)
+        out[electrode_dofs] .= g
+        return out
+    end
+    function ti(G::AbstractMatrix)
+        out = zeros(eltype(G), n, size(G, 2))
+        out[electrode_dofs, :] .= G
+        return out
+    end
+    return tb, ti
 end

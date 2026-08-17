@@ -39,8 +39,21 @@ ncells = getncells(grid)
 
 # for later:
 ∂Ω = union(getfacetset.((grid,), ["left", "top", "right", "bottom"])...)
-m = length(∂Ω)
+
+# Electrode dofs for the boundary-restricted objective: a subset of the
+# boundary dofs of `dh`'s :u field, not every dof on ∂Ω (see
+# select_electrodes for the caveat on what "evenly spaced" means here).
+bdofs = boundary_dofs(dh, :u, ∂Ω)
+n_electrodes = 16
+electrode_dofs = select_electrodes(bdofs, n_electrodes)
+tb, ti = boundary_maps(n, electrode_dofs)
+m = length(electrode_dofs)
+
+# The grounded reference dof must not be one of the electrodes (see
+# assemble_J's boundary-restricted method), so pick one that isn't:
+pin_dof = first(setdiff(1:n, electrode_dofs))
 
 # This test is supposed to test whether the functional is differentiable:
 include("01NoBoundaryTest.jl")
 include("02AdjointGradientTest.jl")
+include("03BoundaryElectrodeTest.jl")
