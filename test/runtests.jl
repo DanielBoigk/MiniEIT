@@ -1,11 +1,16 @@
 using Test
 using Ferrite, MiniEIT
 using Statistics
-using DifferentiationInterface
-using ForwardDiff: ForwardDiff
-using Enzyme: Enzyme
-using Zygote: Zygote
-using Mooncake: Mooncake
+
+# AD backend packages are only needed for the commented-out MWE at the
+# bottom of test/01NoBoundaryTest.jl (kept there for Enzyme/Mooncake/Zygote
+# maintainers to test against, not run as part of this suite). Uncomment if
+# you want to exercise that block locally:
+# using DifferentiationInterface
+# using ForwardDiff: ForwardDiff
+# using Enzyme: Enzyme
+# using Zygote: Zygote
+# using Mooncake: Mooncake
 
 # this is the minimal Ferrite things needed to give an example:
 
@@ -28,6 +33,9 @@ end
 
 cellvalues, dh, dim, n = return_space(RefQuadrilateral, grid, 2, 3)
 
+# σ is piecewise constant per cell (P0), so it has one value per cell,
+# not one per dof of `dh`:
+ncells = getncells(grid)
 
 # for later:
 ∂Ω = union(getfacetset.((grid,), ["left", "top", "right", "bottom"])...)
@@ -35,3 +43,4 @@ m = length(∂Ω)
 
 # This test is supposed to test whether the functional is differentiable:
 include("01NoBoundaryTest.jl")
+include("02AdjointGradientTest.jl")
