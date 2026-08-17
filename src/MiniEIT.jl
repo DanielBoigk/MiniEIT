@@ -48,7 +48,7 @@ module MiniEIT
             u_b .-= f
             dot(u_b,u_b)
         end
-        j = (σ::AbstractVector, F::AbstractArray, G::AbstractArray) -> begin
+        J = (σ::AbstractVector, F::AbstractArray, G::AbstractArray) -> begin
             L = assemble_L!(ai,σ)
             RHS = ti(G)
             U = L \ RHS

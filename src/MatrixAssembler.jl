@@ -37,13 +37,13 @@ function assemble_L!(ai::AssemblerInfo, σ::AbstractVector)
         reinit!(cellvalues, cell)
         for q in 1:getnquadpoints(cellvalues)
             dΩ = getdetJdV(cellvalues, q)
-            γe = σ[celldofs(cell)]
-            γ = function_value(cellvalues, q, γe)
+            σe = σ[celldofs(cell)]
+            σ_f = function_value(cellvalues, q, σe)
             for i in 1:n_basefuncs
                 ∇v = shape_gradient(cellvalues, q, i)
                 for j in 1:n_basefuncs
                     ∇u = shape_gradient(cellvalues, q, j)
-                    Le[i, j] += γ * (∇v ⋅ ∇u) * dΩ
+                    Le[i, j] += σ_f * (∇v ⋅ ∇u) * dΩ
                 end
             end
         end
