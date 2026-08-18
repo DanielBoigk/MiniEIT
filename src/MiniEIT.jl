@@ -180,22 +180,23 @@ module MiniEIT
         return j, J, grad_j, grad_J
     end
 
-    # Block-Krylov variant of the boundary-restricted objective: instead of
-    # grounding an arbitrary reference dof (assemble_L!'s `pin`/`ground!`),
-    # this solves for the u with mean(tb(u)) = 0 -- i.e. the electrode
-    # voltages are referenced to their own mean, which is what's physically
-    # measured, rather than an arbitrary interior dof. See `bordered`.
+    # Variant of the boundary-restricted objective that grounds by
+    # projection instead of by pinning an arbitrary reference dof
+    # (assemble_L!'s `pin`/`ground!`): it solves for the u with
+    # mean(tb(u)) = 0 -- i.e. the electrode voltages are referenced to their
+    # own mean, which is what's physically measured, rather than an
+    # arbitrary interior dof. See `bordered`.
     #
-    # Krylov.jl doesn't have a block-CG (only block_gmres/block_minres); CG
-    # wouldn't apply here anyway since L is only positive *semi*-definite.
-    # block_minres is the right tool: it's built for symmetric
-    # indefinite/singular systems, and the bordered saddle-point matrix
-    # [L w; w' 0] is exactly that (symmetric, one negative eigenvalue). It
-    # also solves all k columns of G/F in one call, hence "block".
+    # j/grad_j (single RHS) solve the bordered system directly via `\`,
+    # since it's no longer singular -- no iterative solver needed there.
     #
-    # Only the block (matrix G, F) forms are provided -- there's no benefit
-    # to block_minres for a single RHS, use the plain boundary-restricted
-    # assemble_J's j/grad_j for that.
+    # J/grad_J (matrix RHS) use Krylov's block_minres. Krylov.jl doesn't
+    # have a block-CG (only block_gmres/block_minres); CG wouldn't apply
+    # here anyway since L is only positive *semi*-definite. block_minres is
+    # the right tool: it's built for symmetric indefinite/singular systems,
+    # and the bordered saddle-point matrix [L w; w' 0] is exactly that
+    # (symmetric, one negative eigenvalue). It also solves all k columns of
+    # G/F in one call, hence "block" -- there's no such benefit for j/grad_j.
     #
     # Convenience: σ lives in the same FE space as u.
     function assemble_J_projected(cellvalues::CellValues, dh::DofHandler, m::Int, tb, ti)
@@ -206,12 +207,41 @@ module MiniEIT
         ai = AssemblerInfo(cellvalues, dh, cellvalues_σ, dh_σ)
         n = ndofs(dh)
         n_σ = ndofs(dh_σ)
+        u = zeros(n)
+        λ = zeros(n)
+        u_b = zeros(m)
         grad = zeros(n_σ)
         w = ti(fill(1 / m, m))  # mean-over-electrodes functional: w'u = mean(tb(u))
 
         # State: [L w; w' 0][u; ν] = [ti(g); 0]. Requires sum(g)=0 (charge
         # conservation) for ν≈0, same compatibility condition the grounded
         # version needs -- see boundary_maps' docstring.
+        j = (σ::AbstractVector, f::AbstractVector, g::AbstractVector) -> begin
+            L = assemble_L!(ai, σ; ground=false)
+            Lb = bordered(L, w)
+            x = Lb \ [ti(g); 0]
+            u .= @view x[1:n]
+            u_b .= tb(u)
+            u_b .-= f
+            dot(u_b, u_b)
+        end
+
+        # Adjoint: same bordered operator, RHS = [-2 ti(tb(u)-f); 0], for the
+        # same reason as the plain boundary-restricted grad_j (ti = tb').
+        grad_j = (σ::AbstractVector, f::AbstractVector, g::AbstractVector) -> begin
+            L = assemble_L!(ai, σ; ground=false)
+            Lb = bordered(L, w)
+            fact = factorize(Lb)
+            x = fact \ [ti(g); 0]
+            u .= @view x[1:n]
+            u_b .= tb(u)
+            u_b .-= f
+            y = fact \ [ti(-2 .* u_b); 0]
+            λ .= @view y[1:n]
+            assemble_gradient!(grad, ai, λ, u)
+            return copy(grad)
+        end
+
         J = (σ::AbstractVector, F::AbstractArray, G::AbstractArray) -> begin
             L = assemble_L!(ai, σ; ground=false)
             Lb = bordered(L, w)
@@ -223,8 +253,6 @@ module MiniEIT
             dot(Ub, Ub)
         end
 
-        # Adjoint: same bordered operator, RHS = [-2 ti(tb(u)-f); 0], for the
-        # same reason as the plain boundary-restricted grad_J (ti = tb').
         grad_J = (σ::AbstractVector, F::AbstractArray, G::AbstractArray) -> begin
             L = assemble_L!(ai, σ; ground=false)
             Lb = bordered(L, w)
@@ -244,6 +272,6 @@ module MiniEIT
             return total
         end
 
-        return J, grad_J
+        return j, J, grad_j, grad_J
     end
 end
