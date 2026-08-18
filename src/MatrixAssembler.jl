@@ -3,6 +3,7 @@
 
 export assemble_L, assemble_L!, assemble_gradient!, AssemblerInfo
 export boundary_dofs, select_electrodes, boundary_maps
+export bordered
 
 struct AssemblerInfo
     L
@@ -46,7 +47,11 @@ AssemblerInfo(cellvalues::CellValues, dh::DofHandler; pin::Int=1) = AssemblerInf
 # `ground!` -- any dof works, since the constant null vector is nonzero
 # everywhere. Callers must correspondingly zero out `rhs[ai.pin]` (or the
 # matching row for a matrix RHS) before solving `L \ rhs`.
-function assemble_L!(ai::AssemblerInfo, σ::AbstractVector)
+#
+# Pass `ground=false` to get the raw, still-singular L back instead -- e.g.
+# for solving via `bordered`, which removes the null space by a constraint
+# instead of by eliminating a dof.
+function assemble_L!(ai::AssemblerInfo, σ::AbstractVector; ground::Bool=true)
     L = ai.L
     cellvalues = ai.cellvalues
     cellvalues_σ = ai.cellvalues_σ
@@ -75,7 +80,7 @@ function assemble_L!(ai::AssemblerInfo, σ::AbstractVector)
         end
         assemble!(assembler, celldofs(cell), Le)
     end
-    ground!(L, ai.pin)
+    ground && ground!(L, ai.pin)
     return L
 end
 
@@ -124,6 +129,22 @@ function assemble_gradient!(grad::AbstractVector, ai::AssemblerInfo, λ::Abstrac
         end
     end
     return grad
+end
+
+# Borders the raw (ungrounded, singular) L with a constraint vector w into
+# the symmetric (n+1)x(n+1) saddle-point matrix [L w; w' 0]. Solving
+# [L w; w' 0] [u; ν] = [rhs; 0] gives the unique u with L u = rhs AND
+# w'u = 0 -- i.e. it picks the one member of L's null-space-shifted solution
+# family (u* + c*1, since null(L) = span(1)) satisfying a chosen linear
+# constraint w'u=0, instead of picking it by pinning a single dof to zero.
+# ν comes out ≈0 (so the top block rows really do solve L u = rhs
+# unperturbed) provided rhs is compatible, i.e. sum(rhs) = 0 -- same
+# zero-net-current condition pure-Neumann problems already need.
+# w must have w'*1 ≠ 0 (e.g. w supported on a nonempty dof subset with
+# positive entries) for the bordered matrix to be nonsingular.
+function bordered(L::SparseMatrixCSC, w::AbstractVector)
+    wcol = sparse(reshape(w, :, 1))
+    return [L wcol; sparse(wcol') spzeros(eltype(L), 1, 1)]
 end
 
 # Sorted, unique global dof indices of `field` on `facetset` (e.g. the whole
